@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  vk-db:
+    image: postgres
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ../data/postgres:/var/lib/postgresql/data
+
+  vk-web:
+    build: ../.
+    working_dir: /code/
+    command: bash -c "./manage.py migrate && ./manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ../web:/code
+    ports:
+      - "8001:8000"
+    depends_on:
+      - vk-db
+
+  vk-celery:
+    build: ../.
+    working_dir: /code/
+    command: celery -A vk_poster worker -l info
+    volumes:
+      - ../web:/code
+    depends_on:
+      - vk-web
+
+  vk-celery-beat:
+    build: ../.
+    working_dir: /code/
+    command: celery -A vk_poster beat -l debug -S django
+    volumes:
+      - ../web:/code
+    depends_on:
+      - vk-web
+
